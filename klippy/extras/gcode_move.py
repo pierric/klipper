@@ -88,7 +88,7 @@ class GCodeMove:
         return old_transform
     def _get_gcode_position(self):
         p = [lp - bp for lp, bp in zip(self.last_position, self.base_position)]
-        p[6] /= self.extrude_factor
+        p[3] /= self.extrude_factor
         return p
     def _get_gcode_speed(self):
         return self.speed / self.speed_factor

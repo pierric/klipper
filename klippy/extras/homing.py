@@ -39,6 +39,7 @@ class StepperPosition:
 class HomingMove:
     def __init__(self, printer, endstops, toolhead=None):
         self.printer = printer
+        self.gcode = self.printer.lookup_object('gcode')
         self.endstops = endstops
         if toolhead is None:
             toolhead = printer.lookup_object('toolhead')

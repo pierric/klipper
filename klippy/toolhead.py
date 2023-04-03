@@ -17,6 +17,7 @@ class Move:
         start_pos = support_6axes.Axes.extend(start_pos)
         end_pos = support_6axes.Axes.extend(end_pos)
         self.toolhead = toolhead
+        self.gcode = self.toolhead.printer.lookup_object('gcode')
         self.start_pos = tuple(start_pos)
         self.end_pos = tuple(end_pos)
         self.accel = toolhead.max_accel
@@ -207,6 +208,7 @@ class DripModeEndSignal(Exception):
 class ToolHead:
     def __init__(self, config):
         self.printer = config.get_printer()
+        self.gcode = self.printer.lookup_object('gcode')
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
             m for n, m in self.printer.lookup_objects(module='mcu')]
