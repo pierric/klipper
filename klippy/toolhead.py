@@ -5,19 +5,143 @@
 # This file may be distributed under the terms of the GNU GPLv3 license.
 import math, logging, importlib
 import mcu, chelper, kinematics.extruder
-import support_6axes
 
 # Common suffixes: _d is distance (in mm), _v is velocity (in
 #   mm/second), _v2 is velocity squared (mm^2/s^2), _t is time (in
 #   seconds), _r is ratio (scalar between 0.0 and 1.0)
 
+
+    
 # Class to track each move request
 class Move:
+    # function mapping
+    def is_in_triangle(self, p0x, p0y, p1x, p1y, p2x, p2y, px, py): 
+        area = 0.5 *(-p1y*p2x + p0y*(-p1x + p2x) + p0x*(p1y - p2y) + p1x*p2y)
+        try:        
+            s = 1/(2*area)*(p0y*p2x - p0x*p2y + (p2y - p0y)*px + (p0x - p2x)*py)
+            t = 1/(2*area)*(p0x*p1y - p0y*p1x + (p0y - p1y)*px + (p1x - p0x)*py)
+            if((0 <= s) and (s <= 1) and (0 <= t) and (t <= 1) and (0<=1-s-t) and (1-s-t<=1)):
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    def get_triangle_value(self, p0x, p0y, p1x, p1y, p2x, p2y, px, py, v0, v1, v2): 
+        area = 0.5 *(-p1y*p2x + p0y*(-p1x + p2x) + p0x*(p1y - p2y) + p1x*p2y)  
+        s = 1/(2*area)*(p0y*p2x - p0x*p2y + (p2y - p0y)*px + (p0x - p2x)*py)
+        t = 1/(2*area)*(p0x*p1y - p0y*p1x + (p0y - p1y)*px + (p1x - p0x)*py)
+        return s * (v1 - v0) + t * (v2 - v0) + v0
+
     def __init__(self, toolhead, start_pos, end_pos, speed):
-        start_pos = support_6axes.Axes.extend(start_pos)
-        end_pos = support_6axes.Axes.extend(end_pos)
         self.toolhead = toolhead
-        self.gcode = self.toolhead.printer.lookup_object('gcode')
+        # hexa mapping
+        # mapping hexa
+        ma = end_pos[3] % 360.0
+        if ma < 0:
+            ma += 360.0
+        mb = end_pos[4]
+        # b area
+        for bl_idx in range(toolhead.cnt_b):
+            bh_idx = bl_idx + 1
+            if bh_idx >= toolhead.cnt_b:
+                bh_idx = 0
+            if (toolhead.mb[bl_idx] <= mb) and (mb < toolhead.mb[bh_idx]):
+                break
+        # a area
+        for al_idx in range(toolhead.cnt_a):
+            ah_idx = al_idx + 1
+            if ah_idx >= toolhead.cnt_a:
+                ah_idx = 0
+            if (toolhead.ma[al_idx] <= ma) and (ma < toolhead.ma[ah_idx]):
+                break
+        # tri area
+        for (t0_blal, t1_blal, t2_blal) in zip (toolhead.tri0, toolhead.tri1, toolhead.tri2):
+            p0x_blal = toolhead.tx[bl_idx][al_idx][t0_blal]
+            p0y_blal = toolhead.ty[bl_idx][al_idx][t0_blal]
+            p1x_blal = toolhead.tx[bl_idx][al_idx][t1_blal]
+            p1y_blal = toolhead.ty[bl_idx][al_idx][t1_blal]
+            p2x_blal = toolhead.tx[bl_idx][al_idx][t2_blal]
+            p2y_blal = toolhead.ty[bl_idx][al_idx][t2_blal]
+            if self.is_in_triangle(p0x_blal, p0y_blal, p1x_blal, p1y_blal, p2x_blal, p2y_blal, end_pos[0], end_pos[1]):
+                break
+        for (t0_blah, t1_blah, t2_blah) in zip (toolhead.tri0, toolhead.tri1, toolhead.tri2):
+            p0x_blah = toolhead.tx[bl_idx][ah_idx][t0_blah]
+            p0y_blah = toolhead.ty[bl_idx][ah_idx][t0_blah]
+            p1x_blah = toolhead.tx[bl_idx][ah_idx][t1_blah]
+            p1y_blah = toolhead.ty[bl_idx][ah_idx][t1_blah]
+            p2x_blah = toolhead.tx[bl_idx][ah_idx][t2_blah]
+            p2y_blah = toolhead.ty[bl_idx][ah_idx][t2_blah]
+            if self.is_in_triangle(p0x_blah, p0y_blah, p1x_blah, p1y_blah, p2x_blah, p2y_blah, end_pos[0], end_pos[1]):
+                break
+        for (t0_bhal, t1_bhal, t2_bhal) in zip (toolhead.tri0, toolhead.tri1, toolhead.tri2):
+            p0x_bhal = toolhead.tx[bh_idx][al_idx][t0_bhal]
+            p0y_bhal = toolhead.ty[bh_idx][al_idx][t0_bhal]
+            p1x_bhal = toolhead.tx[bh_idx][al_idx][t1_bhal]
+            p1y_bhal = toolhead.ty[bh_idx][al_idx][t1_bhal]
+            p2x_bhal = toolhead.tx[bh_idx][al_idx][t2_bhal]
+            p2y_bhal = toolhead.ty[bh_idx][al_idx][t2_bhal]
+            if self.is_in_triangle(p0x_bhal, p0y_bhal, p1x_bhal, p1y_bhal, p2x_bhal, p2y_bhal, end_pos[0], end_pos[1]):
+                break
+        for (t0_bhah, t1_bhah, t2_bhah) in zip (toolhead.tri0, toolhead.tri1, toolhead.tri2):
+            p0x_bhah = toolhead.tx[bh_idx][ah_idx][t0_bhah]
+            p0y_bhah = toolhead.ty[bh_idx][ah_idx][t0_bhah]
+            p1x_bhah = toolhead.tx[bh_idx][ah_idx][t1_bhah]
+            p1y_bhah = toolhead.ty[bh_idx][ah_idx][t1_bhah]
+            p2x_bhah = toolhead.tx[bh_idx][ah_idx][t2_bhah]
+            p2y_bhah = toolhead.ty[bh_idx][ah_idx][t2_bhah]
+            if self.is_in_triangle(p0x_bhah, p0y_bhah, p1x_bhah, p1y_bhah, p2x_bhah, p2y_bhah, end_pos[0], end_pos[1]):
+                break
+        # log
+        logging.info('\nx{0},y{1},z{2},a{3},b{4}'.format(end_pos[0], end_pos[1], end_pos[2], end_pos[3], end_pos[4]))
+        logging.info('bl{0},bh{1},al{2},ah{3}'.format(bl_idx, bh_idx, al_idx, ah_idx))
+        logging.info('blal:{0}({1},{2}),{3}({4},{5}),{6}({7},{8})'.format(t0_blal, p0x_blal, p0y_blal, t1_blal, p1x_blal, p1y_blal, t2_blal, p2x_blal, p2y_blal))
+        logging.info('blah:{0}({1},{2}),{3}({4},{5}),{6}({7},{8})'.format(t0_blah, p0x_blah, p0y_blah, t1_blah, p1x_blah, p1y_blah, t2_blah, p2x_blah, p2y_blah))
+        logging.info('bhal:{0}({1},{2}),{3}({4},{5}),{6}({7},{8})'.format(t0_bhal, p0x_bhal, p0y_bhal, t1_bhal, p1x_bhal, p1y_bhal, t2_bhal, p2x_bhal, p2y_bhal))
+        logging.info('bhah:{0}({1},{2}),{3}({4},{5}),{6}({7},{8})'.format(t0_bhah, p0x_bhah, p0y_bhah, t1_bhah, p1x_bhah, p1y_bhah, t2_bhah, p2x_bhah, p2y_bhah))
+        # calc value
+        # x
+        x_blal = self.get_triangle_value(p0x_blal, p0y_blal, p1x_blal, p1y_blal, p2x_blal, p2y_blal, end_pos[0], end_pos[1],\
+                        toolhead.mx[t0_blal], toolhead.mx[t1_blal], toolhead.mx[t2_blal])
+        x_blah = self.get_triangle_value(p0x_blah, p0y_blah, p1x_blah, p1y_blah, p2x_blah, p2y_blah, end_pos[0], end_pos[1],\
+                        toolhead.mx[t0_blah], toolhead.mx[t1_blah], toolhead.mx[t2_blah])
+        x_bl = (ma - toolhead.ma[al_idx]) / (toolhead.ma[ah_idx] - toolhead.ma[al_idx]) * (x_blah - x_blal) + x_blal
+        x_bhal = self.get_triangle_value(p0x_bhal, p0y_bhal, p1x_bhal, p1y_bhal, p2x_bhal, p2y_bhal, end_pos[0], end_pos[1],\
+                        toolhead.mx[t0_bhal], toolhead.mx[t1_bhal], toolhead.mx[t2_bhal])
+        x_bhah = self.get_triangle_value(p0x_bhah, p0y_bhah, p1x_bhah, p1y_bhah, p2x_bhah, p2y_bhah, end_pos[0], end_pos[1],\
+                        toolhead.mx[t0_bhah], toolhead.mx[t1_bhah], toolhead.mx[t2_bhah])
+        x_bh = (ma - toolhead.ma[al_idx]) / (toolhead.ma[ah_idx] - toolhead.ma[al_idx]) * (x_bhah - x_bhal) + x_bhal
+        buf_pos_x = (mb - toolhead.mb[bl_idx]) / (toolhead.mb[bh_idx] - toolhead.mb[bl_idx]) * (x_bh - x_bl) + x_bl
+        # y
+        y_blal = self.get_triangle_value(p0x_blal, p0y_blal, p1x_blal, p1y_blal, p2x_blal, p2y_blal, end_pos[0], end_pos[1],\
+                        toolhead.my[t0_blal], toolhead.my[t1_blal], toolhead.my[t2_blal])
+        y_blah = self.get_triangle_value(p0x_blah, p0y_blah, p1x_blah, p1y_blah, p2x_blah, p2y_blah, end_pos[0], end_pos[1],\
+                        toolhead.my[t0_blah], toolhead.my[t1_blah], toolhead.my[t2_blah])
+        y_bl = (ma - toolhead.ma[al_idx]) / (toolhead.ma[ah_idx] - toolhead.ma[al_idx]) * (y_blah - y_blal) + y_blal
+        y_bhal = self.get_triangle_value(p0x_bhal, p0y_bhal, p1x_bhal, p1y_bhal, p2x_bhal, p2y_bhal, end_pos[0], end_pos[1],\
+                        toolhead.my[t0_bhal], toolhead.my[t1_bhal], toolhead.my[t2_bhal])
+        y_bhah = self.get_triangle_value(p0x_bhah, p0y_bhah, p1x_bhah, p1y_bhah, p2x_bhah, p2y_bhah, end_pos[0], end_pos[1],\
+                        toolhead.my[t0_bhah], toolhead.my[t1_bhah], toolhead.my[t2_bhah])
+        y_bh = (ma - toolhead.ma[al_idx]) / (toolhead.ma[ah_idx] - toolhead.ma[al_idx]) * (y_bhah - y_bhal) + y_bhal
+        buf_pos_y = (mb - toolhead.mb[bl_idx]) / (toolhead.mb[bh_idx] - toolhead.mb[bl_idx]) * (y_bh - y_bl) + y_bl
+        # z
+        z_blal = self.get_triangle_value(p0x_blal, p0y_blal, p1x_blal, p1y_blal, p2x_blal, p2y_blal, end_pos[0], end_pos[1],\
+                        toolhead.tz[bl_idx][al_idx][t0_blal], toolhead.tz[bl_idx][al_idx][t1_blal], toolhead.tz[bl_idx][al_idx][t2_blal])
+        z_blah = self.get_triangle_value(p0x_blah, p0y_blah, p1x_blah, p1y_blah, p2x_blah, p2y_blah, end_pos[0], end_pos[1],\
+                        toolhead.tz[bl_idx][ah_idx][t0_blah], toolhead.tz[bl_idx][ah_idx][t1_blah], toolhead.tz[bl_idx][ah_idx][t2_blah])
+        z_bl = (ma - toolhead.ma[al_idx]) / (toolhead.ma[ah_idx] - toolhead.ma[al_idx]) * (z_blah - z_blal) + z_blal
+        z_bhal = self.get_triangle_value(p0x_bhal, p0y_bhal, p1x_bhal, p1y_bhal, p2x_bhal, p2y_bhal, end_pos[0], end_pos[1],\
+                        toolhead.tz[bh_idx][al_idx][t0_bhal], toolhead.tz[bh_idx][al_idx][t1_bhal], toolhead.tz[bh_idx][al_idx][t2_bhal])
+        z_bhah = self.get_triangle_value(p0x_bhah, p0y_bhah, p1x_bhah, p1y_bhah, p2x_bhah, p2y_bhah, end_pos[0], end_pos[1],\
+                        toolhead.tz[bh_idx][ah_idx][t0_bhah], toolhead.tz[bh_idx][ah_idx][t1_bhah], toolhead.tz[bh_idx][ah_idx][t2_bhah])
+        z_bh = (ma - toolhead.ma[al_idx]) / (toolhead.ma[ah_idx] - toolhead.ma[al_idx]) * (z_bhah - z_bhal) + z_bhal
+        buf_pos_z = (mb - toolhead.mb[bl_idx]) / (toolhead.mb[bh_idx] - toolhead.mb[bl_idx]) * (z_bh - z_bl) + z_bl
+        logging.info('buf_pos_z:{0}'.format(buf_pos_z))   
+        end_pos = (buf_pos_x, buf_pos_y, end_pos[2] + buf_pos_z, end_pos[3], end_pos[4], end_pos[5], end_pos[6])
+        # log
+        logging.info('x{0},y{1},z{2},a{3},b{4}'.format(end_pos[0], end_pos[1], end_pos[2], end_pos[3], end_pos[4]))
+        
+        # original
         self.start_pos = tuple(start_pos)
         self.end_pos = tuple(end_pos)
         self.accel = toolhead.max_accel
@@ -25,22 +149,26 @@ class Move:
         self.timing_callbacks = []
         velocity = min(speed, toolhead.max_velocity)
         self.is_kinematic_move = True
-        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in range(7)]
-        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:6]]))
+        self.axes_d = axes_d = [end_pos[i] - start_pos[i] for i in (0, 1, 2, 3, 4, 5, 6)]
+        self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[:3]]))
         if move_d < .000000001:
-            # Extrude only move
-            self.end_pos = (start_pos[0], start_pos[1], start_pos[2],
-                            start_pos[3], start_pos[4], start_pos[5],
-                            end_pos[6])
-            axes_d[0] = axes_d[1] = axes_d[2] \
-                    = axes_d[3] = axes_d[4] = axes_d[5] = 0.
-            self.move_d = move_d = abs(axes_d[6])
-            inv_move_d = 0.
-            if move_d:
+            self.move_d = move_d = math.sqrt(sum([d*d for d in axes_d[3:6]]))
+            if move_d < .000000001:
+                # Extrude only move
+                self.end_pos = (start_pos[0], start_pos[1], start_pos[2],
+                                start_pos[3], start_pos[4], start_pos[5],
+                                end_pos[6])
+                axes_d[0] = axes_d[1] = axes_d[2] = axes_d[3] = axes_d[4] = axes_d[5] = 0.
+                self.move_d = move_d = abs(axes_d[6])
+                inv_move_d = 0.
+                if move_d:
+                    inv_move_d = 1. / move_d
+                self.accel = 99999999.9
+                velocity = speed
+                self.is_kinematic_move = False
+            else:
+                self.accel = 99999999.9
                 inv_move_d = 1. / move_d
-            self.accel = 99999999.9
-            velocity = speed
-            self.is_kinematic_move = False
         else:
             inv_move_d = 1. / move_d
         self.axes_r = [d * inv_move_d for d in axes_d]
@@ -63,8 +191,7 @@ class Move:
         self.smooth_delta_v2 = min(self.smooth_delta_v2, self.delta_v2)
     def move_error(self, msg="Move out of range"):
         ep = self.end_pos
-        m = "%s: %.3f %.3f %.3f %.3f %.3f %.3f [%.3f]" % \
-            (msg, ep[0], ep[1], ep[2], ep[3], ep[4], ep[5], ep[6])
+        m = "%s: %.3f %.3f %.3f %.3f %.3f %.3f [%.3f]" % (msg, ep[0], ep[1], ep[2], ep[3], ep[4], ep[5], ep[6])
         return self.toolhead.printer.command_error(m)
     def calc_junction(self, prev_move):
         if not self.is_kinematic_move or not prev_move.is_kinematic_move:
@@ -209,7 +336,6 @@ class DripModeEndSignal(Exception):
 class ToolHead:
     def __init__(self, config):
         self.printer = config.get_printer()
-        self.gcode = self.printer.lookup_object('gcode')
         self.reactor = self.printer.get_reactor()
         self.all_mcus = [
             m for n, m in self.printer.lookup_objects(module='mcu')]
@@ -231,7 +357,6 @@ class ToolHead:
             'square_corner_velocity', 5., minval=0.)
         self.junction_deviation = 0.
         self._calc_junction_deviation()
-        self.is_6axes = config.getboolean('is_6axes', False)
         # Print time tracking
         self.buffer_time_low = config.getfloat(
             'buffer_time_low', 1.000, above=0.)
@@ -287,6 +412,90 @@ class ToolHead:
                    "manual_probe", "tuning_tower"]
         for module_name in modules:
             self.printer.load_object(config, module_name)
+            
+        # import hexa offset map
+        file_path = '/home/pi/printer_data/config/calib_xyz.csv'
+        with open(file_path, mode='r') as f:
+            line = f.readline()
+            buf_arr = line.split(',')
+            self.cnt_pos = int(buf_arr[0])
+            self.cnt_tri = int(buf_arr[1])
+            self.cnt_b = int(buf_arr[2])
+            self.cnt_a = int(buf_arr[3])
+            # mb
+            line = f.readline()
+            buf_arr = line.split(',')
+            self.mb = []
+            for buf in buf_arr:
+                self.mb.append(float(buf))
+            # ma
+            line = f.readline()
+            buf_arr = line.split(',')
+            self.ma = []
+            for buf in buf_arr:
+                self.ma.append(float(buf))
+            # mx
+            line = f.readline()
+            buf_arr = line.split(',')
+            self.mx = []
+            for buf in buf_arr:
+                self.mx.append(float(buf))
+            # my
+            line = f.readline()
+            buf_arr = line.split(',')
+            self.my = []
+            for buf in buf_arr:
+                self.my.append(float(buf))
+            # tri
+            self.tri0 = []
+            self.tri1 = []
+            self.tri2 = []
+            for i in range(self.cnt_tri):
+                line = f.readline()
+                buf_arr = line.split(',')
+                self.tri0.append(int(buf_arr[0]))
+                self.tri1.append(int(buf_arr[1]))
+                self.tri2.append(int(buf_arr[2]))
+            # mz
+            self.tx = []
+            self.ty = []
+            self.tz = []            
+            for i in range(self.cnt_b):
+                buf_bx = []
+                buf_by = []
+                buf_bz = []
+                for j in range(self.cnt_a):
+                    buf_ax = []
+                    buf_ay = []
+                    buf_az = []
+                    # x
+                    line = f.readline()
+                    buf_arr = line.split(',')
+                    for buf in buf_arr:
+                        buf_ax.append(float(buf))
+                    buf_bx.append(buf_ax)
+                    # y
+                    line = f.readline()
+                    buf_arr = line.split(',')
+                    for buf in buf_arr:
+                        buf_ay.append(float(buf))
+                    buf_by.append(buf_ay)
+                    # z
+                    line = f.readline()
+                    buf_arr = line.split(',')
+                    for buf in buf_arr:
+                        buf_az.append(float(buf))
+                    buf_bz.append(buf_az)
+                self.tx.append(buf_bx)
+                self.ty.append(buf_by)
+                self.tz.append(buf_bz)
+            logging.info('\ncnt_b{0},cnt_a{1}'.format(self.cnt_b, self.cnt_a))
+            logging.info('mx{0}'.format(self.mx))
+            logging.info('my{0}'.format(self.my))
+            logging.info('tx{0}'.format(self.tx))
+            logging.info('ty{0}'.format(self.ty))
+            logging.info('tz{0}'.format(self.tz))
+                
     # Print time tracking
     def _update_move_time(self, next_print_time):
         batch_time = MOVE_BATCH_TIME
@@ -419,11 +628,7 @@ class ToolHead:
         return self.reactor.NEVER
     # Movement commands
     def get_position(self):
-        if self.is_6axes:
-            retpos = self.commanded_pos
-        else:
-            retpos = support_6axes.Axes.shrink(self.commanded_pos)
-        return list(retpos)
+        return list(self.commanded_pos)
     def set_position(self, newpos, homing_axes=()):
         self.flush_step_generation()
         ffi_main, ffi_lib = chelper.get_ffi()

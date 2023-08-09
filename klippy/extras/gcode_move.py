@@ -48,7 +48,7 @@ class GCodeMove:
         # G-Code state
         self.saved_states = {}
         self.move_transform = self.move_with_transform = None
-        self.position_with_transform = (lambda: [0., 0., 0., 0., 0., 0., 0.])
+        self.position_with_transform = (lambda: [0., 0., 0., 0., 0.0, 0.0, 0.0])
     def _handle_ready(self):
         self.is_printer_ready = True
         if self.move_transform is None:
@@ -88,7 +88,7 @@ class GCodeMove:
         return old_transform
     def _get_gcode_position(self):
         p = [lp - bp for lp, bp in zip(self.last_position, self.base_position)]
-        p[3] /= self.extrude_factor
+        p[6] /= self.extrude_factor
         return p
     def _get_gcode_speed(self):
         return self.speed / self.speed_factor
@@ -168,13 +168,12 @@ class GCodeMove:
                 if i == 6:
                     offset *= self.extrude_factor
                 self.base_position[i] = self.last_position[i] - offset
-        if offsets == [None, None, None, None]:
+        if offsets == [None, None, None, None, None, None, None]:
             self.base_position = list(self.last_position)
     def cmd_M114(self, gcmd):
         # Get Current Position
         p = self._get_gcode_position()
-        gcmd.respond_raw("X:%.3f Y:%.3f Z:%.3f A:%.3f B:%.3f C:%.3f E:%.3f" \
-                        % tuple(p))
+        gcmd.respond_raw("X:%.3f Y:%.3f Z:%.3f A:%.3f B:%.3f C:%.3f E:%.3f" % tuple(p))
     def cmd_M220(self, gcmd):
         # Set speed factor override percentage
         value = gcmd.get_float('S', 100., above=0.) / (60. * 100.)

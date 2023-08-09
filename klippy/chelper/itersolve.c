@@ -238,7 +238,7 @@ int32_t __visible
 itersolve_is_active_axis(struct stepper_kinematics *sk, char axis)
 {
     if ( (axis < 'a') || ('c' < axis && axis < 'x') || ('z' < axis) )
-        return 0;    
+        return 0;
     int shift = 0;
     if ('x' <= axis && axis <= 'z')
         shift = axis - 'x';
@@ -283,8 +283,7 @@ itersolve_set_position(struct stepper_kinematics *sk
                        , double x, double y, double z
                        , double a, double b, double c)
 {
-    sk->commanded_pos = itersolve_calc_position_from_coord(sk,
-                                                        x, y, z, a, b, c);
+    sk->commanded_pos = itersolve_calc_position_from_coord(sk, x, y, z, a, b, c);
 }
 
 double __visible
