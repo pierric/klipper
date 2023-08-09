@@ -6,8 +6,6 @@
 import logging
 import pins
 from . import manual_probe
-from numpy import average
-import stepper
 
 HINT_TIMEOUT = """
 If the probe did not move far enough to trigger, then
@@ -121,45 +119,23 @@ class PrinterProbe:
             raise self.printer.command_error("Must home before probe")
         phoming = self.printer.lookup_object('homing')
         pos = toolhead.get_position()
-        start_z_pos = pos[2]
         pos[2] = self.z_position
-        # Preparation pulse check
-        rails = self.printer.lookup_object('rails')
-        before_pulse = []
-        after_pulse = []
-        after_z = []
-        toolhead.dwell(0.2)
-        for i in range(len(rails)):
-            rail = rails[i]
-            stepper = rail.get_steppers()
-            before_pulse.append(stepper[0].get_mcu_position())
         try:
-            phoming.probing_move(self.mcu_probe, pos, speed)
-            # check pulse change
-            toolhead.dwell(0.2)
-            for i in range(len(rails)):
-                rail = rails[i]
-                stepper = rail.get_steppers()
-                buf_dist = stepper[0].get_rotation_distance()
-                after_pulse.append(stepper[0].get_mcu_position())
-                after_z.append( (after_pulse[i] - before_pulse[i]) / buf_dist[1] * buf_dist[0] )
-            epos = pos
-            epos[2] = average(after_z) + start_z_pos
-            toolhead.set_position(epos)
+            epos = phoming.probing_move(self.mcu_probe, pos, speed)
         except self.printer.command_error as e:
             reason = str(e)
             if "Timeout during endstop homing" in reason:
                 reason += HINT_TIMEOUT
             raise self.printer.command_error(reason)
-        self.gcode.respond_info("probe at %.3f,%.3f,%.3f,%.3f,%.3f is z=%.6f"
-                                % (epos[0], epos[1], epos[3], epos[4], epos[5], epos[2]))
-        return epos[:6]
+        self.gcode.respond_info("probe at %.3f,%.3f is z=%.6f"
+                                % (epos[0], epos[1], epos[2]))
+        return epos[:3]
     def _move(self, coord, speed):
         self.printer.lookup_object('toolhead').manual_move(coord, speed)
     def _calc_mean(self, positions):
         count = float(len(positions))
         return [sum([pos[i] for pos in positions]) / count
-                for i in range(6)]
+                for i in range(3)]
     def _calc_median(self, positions):
         z_sorted = sorted(positions, key=(lambda p: p[2]))
         middle = len(positions) // 2
@@ -423,11 +399,6 @@ class ProbePointsHelper:
             self.results = []
         # Move to next XY probe point
         nextpos = list(self.probe_points[len(self.results)])
-        nextpos.append(0.0)
-        nextpos[5] = nextpos[4]
-        nextpos[4] = nextpos[3]
-        nextpos[3] = nextpos[2]
-        nextpos[2] = self.horizontal_move_z
         if self.use_offsets:
             nextpos[0] -= self.probe_offsets[0]
             nextpos[1] -= self.probe_offsets[1]
