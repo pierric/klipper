@@ -16,3 +16,5 @@ Klipper is Free Software. See the [license](COPYING) or read the
 [documentation](https://www.klipper3d.org/Overview.html). We depend on
 the generous support from our
 [sponsors](https://www.klipper3d.org/Sponsors.html).
+
+The 6-axis modified klipper is very different from the basic klipper. Do not use it if you do not have the skills to create your own kinematics. Do not request official support. Also, I cannot go so far as to support users who may lack the skills.
