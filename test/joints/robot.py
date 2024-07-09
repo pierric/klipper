@@ -51,7 +51,7 @@ class Parol6(Robot):
 
         super().__init__(elinks, name="Parol6")
 
-        self.qr = np.array([0, 0, 0, 0, 0, 90 * deg])
+        self.qr = np.array([0, 0, 0, 0, 90 * deg, 0])
         self.addconfiguration("qr", self.qr)
 
 
