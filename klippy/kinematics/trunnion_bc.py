@@ -113,7 +113,8 @@ class TrunnionBcKinematics:
         else:
             forcepos[axis] += 2.5 * (position_max - hi.position_endstop)
         # Perform homing
-        # self.gcode.respond_info('forcepos:{0}, homepos:{1}'.format(forcepos, homepos))
+        # self.gcode.respond_info('forcepos:{0}, homepos:{1}'.format(
+        #   forcepos, homepos))
         homing_state.home_rails([rail], forcepos, homepos)
 
     def home(self, homing_state):

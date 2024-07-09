@@ -96,8 +96,8 @@ class pca9685_pwm:
             self._is_enable = is_enable
             self._reactor.register_async_callback(
                 (
-                    lambda e, s=self, pt=print_time, ie=is_enable: s._replicape.note_pwm_enable(
-                        pt, s._channel, ie
+                    lambda e, s=self, pt=print_time, ie=is_enable: (
+                        s._replicape.note_pwm_enable(pt, s._channel, ie)
                     )
                 )
             )
@@ -155,7 +155,8 @@ class servo_pwm:
                 # /sys/class/pwm/ used by the Linux MCU should be a symlink
                 # to this directory.
                 pwmdev = os.listdir(
-                    "/sys/devices/platform/ocp/48302000.epwmss/48302200.pwm/pwm/"
+                    "/sys/devices/platform/ocp/48302000.epwmss/"
+                    "48302200.pwm/pwm/"
                 )
                 pwmchip = [pc for pc in pwmdev if pc.startswith("pwmchip")][0]
             except:

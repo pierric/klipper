@@ -189,7 +189,7 @@ defs_kin_trunnion_bc = """
     struct stepper_kinematics *trunnion_bc_stepper_alloc(
         char axis,
         double offset_x, double offset_y, double offset_z,
-		double offset_a, double offset_b, double offset_c);
+        double offset_a, double offset_b, double offset_c);
 """
 
 defs_kin_idex = """
@@ -308,7 +308,10 @@ def check_build_code(sources, target):
 
 # Check if the current gcc version supports a particular command-line option
 def check_gcc_option(option):
-    cmd = "%s %s -S -o /dev/null -xc /dev/null > /dev/null 2>&1" % (GCC_CMD, option)
+    cmd = "%s %s -S -o /dev/null -xc /dev/null > /dev/null 2>&1" % (
+        GCC_CMD,
+        option,
+    )
     res = os.system(cmd)
     return res == 0
 

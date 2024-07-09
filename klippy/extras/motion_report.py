@@ -142,7 +142,8 @@ class DumpTrapQ:
         for i, m in enumerate(data):
             out.append(
                 "move %d: pt=%.6f mt=%.6f sv=%.6f a=%.6f"
-                " sp=(%.6f,%.6f,%.6f,%.6f,%.6f,%.6f) ar=(%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)"
+                " sp=(%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)"
+                " ar=(%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)"
                 % (
                     i,
                     m.print_time,

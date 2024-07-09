@@ -245,7 +245,9 @@ class HexaKinematics:
             # Move out of range - verify not a homing move
             if end_pos[:2] != self.home_position[:2] or end_z < self.min_z:
                 # or end_z < self.min_z or end_z > self.home_position[2]):
-                # raise move.move_error("home_position:%.2f / end_z:%.2f / min_z:%.2f"%(self.home_position[2], end_z, self.min_z))
+                # raise move.move_error(
+                # "home_position:%.2f / end_z:%.2f / "
+                # "min_z:%.2f"%(self.home_position[2], end_z, self.min_z))
                 pass
                 # raise move.move_error()
             limit_xy2 = -1.0
