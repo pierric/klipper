@@ -7,11 +7,12 @@ from gcode import Coord
 class RoboticJointsKinematics:
     def __init__(self, toolhead, config):
         self.rails = [
-            stepper.PrinterRail(config.getsection("stepper_" + ax)) for ax in "xyzabc"
+            stepper.PrinterRail(config.getsection("stepper_" + ax))
+            for ax in "xyzabc"
         ]
 
         for rail, axis in zip(self.rails, "xyzabc"):
-            rail.setup_itersolve('joints_stepper_alloc', axis.encode())
+            rail.setup_itersolve("joints_stepper_alloc", axis.encode())
 
         self.max_velocity, self.max_accel = toolhead.get_max_velocity()
 
@@ -44,7 +45,8 @@ class RoboticJointsKinematics:
 
     def calc_position(self, stepper_positions):
         return [
-            stepper_positions[stepper.get_name()] for stepper in self.get_steppers()
+            stepper_positions[stepper.get_name()]
+            for stepper in self.get_steppers()
         ]
 
     def update_limits(self, i, range):

@@ -28,10 +28,10 @@ class ArcSupport:
 
     def __init__(self, config):
         self.printer = config.get_printer()
-        self.mm_per_arc_segment = config.getfloat('resolution', 1., above=0.0)
+        self.mm_per_arc_segment = config.getfloat("resolution", 1.0, above=0.0)
 
-        self.gcode_move = self.printer.load_object(config, 'gcode_move')
-        self.gcode = self.printer.lookup_object('gcode')
+        self.gcode_move = self.printer.load_object(config, "gcode_move")
+        self.gcode = self.printer.lookup_object("gcode")
         self.gcode.register_command("G2", self.cmd_G2)
         self.gcode.register_command("G3", self.cmd_G3)
 
@@ -61,27 +61,29 @@ class ArcSupport:
 
     def _cmd_inner(self, gcmd, clockwise):
         gcodestatus = self.gcode_move.get_status()
-        if not gcodestatus['absolute_coordinates']:
+        if not gcodestatus["absolute_coordinates"]:
             raise gcmd.error("G2/G3 does not support relative move mode")
-        currentPos = gcodestatus['gcode_position']
+        currentPos = gcodestatus["gcode_position"]
 
         # Parse parameters
-        asTarget = self.Coord(x=gcmd.get_float("X", currentPos[0]),
-                              y=gcmd.get_float("Y", currentPos[1]),
-                              z=gcmd.get_float("Z", currentPos[2]),
-                              e=None)
+        asTarget = self.Coord(
+            x=gcmd.get_float("X", currentPos[0]),
+            y=gcmd.get_float("Y", currentPos[1]),
+            z=gcmd.get_float("Z", currentPos[2]),
+            e=None,
+        )
 
         if gcmd.get_float("R", None) is not None:
             raise gcmd.error("G2/G3 does not support R moves")
 
         # determine the plane coordinates and the helical axis
-        asPlanar = [ gcmd.get_float(a, 0.) for i,a in enumerate('IJ') ]
+        asPlanar = [gcmd.get_float(a, 0.0) for i, a in enumerate("IJ")]
         axes = (X_AXIS, Y_AXIS, Z_AXIS)
         if self.plane == ARC_PLANE_X_Z:
-            asPlanar = [ gcmd.get_float(a, 0.) for i,a in enumerate('IK') ]
+            asPlanar = [gcmd.get_float(a, 0.0) for i, a in enumerate("IK")]
             axes = (X_AXIS, Z_AXIS, Y_AXIS)
         elif self.plane == ARC_PLANE_Y_Z:
-            asPlanar = [ gcmd.get_float(a, 0.) for i,a in enumerate('JK') ]
+            asPlanar = [gcmd.get_float(a, 0.0) for i, a in enumerate("JK")]
             axes = (Y_AXIS, Z_AXIS, X_AXIS)
 
         if not (asPlanar[0] or asPlanar[1]):
@@ -91,23 +93,22 @@ class ArcSupport:
         asF = gcmd.get_float("F", None)
 
         # Build list of linear coordinates to move
-        coords = self.planArc(currentPos, asTarget, asPlanar,
-                              clockwise, *axes)
-        e_per_move = e_base = 0.
+        coords = self.planArc(currentPos, asTarget, asPlanar, clockwise, *axes)
+        e_per_move = e_base = 0.0
         if asE is not None:
-            if gcodestatus['absolute_extrude']:
+            if gcodestatus["absolute_extrude"]:
                 e_base = currentPos[3]
             e_per_move = (asE - e_base) / len(coords)
 
         # Convert coords into G1 commands
         for coord in coords:
-            g1_params = {'X': coord[0], 'Y': coord[1], 'Z': coord[2]}
+            g1_params = {"X": coord[0], "Y": coord[1], "Z": coord[2]}
             if e_per_move:
-                g1_params['E'] = e_base + e_per_move
-                if gcodestatus['absolute_extrude']:
+                g1_params["E"] = e_base + e_per_move
+                if gcodestatus["absolute_extrude"]:
                     e_base += e_per_move
             if asF is not None:
-                g1_params['F'] = asF
+                g1_params["F"] = asF
             g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
             self.gcode_move.cmd_G1(g1_gcmd)
 
@@ -119,8 +120,16 @@ class ArcSupport:
     # Arcs smaller then this value, will be a Line only
     #
     # alpha and beta axes are the current plane, helical axis is linear travel
-    def planArc(self, currentPos, targetPos, offset, clockwise,
-                alpha_axis, beta_axis, helical_axis):
+    def planArc(
+        self,
+        currentPos,
+        targetPos,
+        offset,
+        clockwise,
+        alpha_axis,
+        beta_axis,
+        helical_axis,
+    ):
         # todo: sometimes produces full circles
 
         # Radius vector from center to current location
@@ -132,19 +141,22 @@ class ArcSupport:
         center_Q = currentPos[beta_axis] - r_Q
         rt_Alpha = targetPos[alpha_axis] - center_P
         rt_Beta = targetPos[beta_axis] - center_Q
-        angular_travel = math.atan2(r_P * rt_Beta - r_Q * rt_Alpha,
-                                    r_P * rt_Alpha + r_Q * rt_Beta)
-        if angular_travel < 0.:
-            angular_travel += 2. * math.pi
+        angular_travel = math.atan2(
+            r_P * rt_Beta - r_Q * rt_Alpha, r_P * rt_Alpha + r_Q * rt_Beta
+        )
+        if angular_travel < 0.0:
+            angular_travel += 2.0 * math.pi
         if clockwise:
-            angular_travel -= 2. * math.pi
+            angular_travel -= 2.0 * math.pi
 
-        if (angular_travel == 0.
+        if (
+            angular_travel == 0.0
             and currentPos[alpha_axis] == targetPos[alpha_axis]
-            and currentPos[beta_axis] == targetPos[beta_axis]):
+            and currentPos[beta_axis] == targetPos[beta_axis]
+        ):
             # Make a circle if the angular rotation is 0 and the
             # target is current position
-            angular_travel = 2. * math.pi
+            angular_travel = 2.0 * math.pi
 
         # Determine number of segments
         linear_travel = targetPos[helical_axis] - currentPos[helical_axis]
@@ -154,7 +166,7 @@ class ArcSupport:
             mm_of_travel = math.hypot(flat_mm, linear_travel)
         else:
             mm_of_travel = math.fabs(flat_mm)
-        segments = max(1., math.floor(mm_of_travel / self.mm_per_arc_segment))
+        segments = max(1.0, math.floor(mm_of_travel / self.mm_per_arc_segment))
 
         # Generate coordinates
         theta_per_segment = angular_travel / segments
@@ -176,6 +188,7 @@ class ArcSupport:
 
         coords.append(targetPos)
         return coords
+
 
 def load_config(config):
     return ArcSupport(config)

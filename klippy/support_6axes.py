@@ -2,6 +2,7 @@
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
 
+
 class Axes:
     @classmethod
     def extend(self, pos):
@@ -10,15 +11,15 @@ class Axes:
 
         if isinstance(pos, tuple):
             if len(pos) == 4:
-                return (pos[0], pos[1], pos[2], 0., 0., 0., pos[3])
+                return (pos[0], pos[1], pos[2], 0.0, 0.0, 0.0, pos[3])
             else:
-                return (pos[0], pos[1], pos[2], 0., 0., 0.)
+                return (pos[0], pos[1], pos[2], 0.0, 0.0, 0.0)
 
         if len(pos) == 4:
-            pos.extend([0.,0.,pos[3]])
-            pos[3] = 0.
+            pos.extend([0.0, 0.0, pos[3]])
+            pos[3] = 0.0
         else:
-            pos.extend([0., 0., 0.])
+            pos.extend([0.0, 0.0, 0.0])
 
         return pos
 
