@@ -19,14 +19,14 @@ class RoboticJointsKinematics:
         printer_config = config.getsection("printer")
         links_spec = printer_config.get("links")
 
-        with open(links_spec, "r") as fp:
-            loc = {"np": np}
-            exec(fp.read(), loc, None)
-            self.links = loc["make_robot"]().links
+        # with open(links_spec, "r") as fp:
+        #     loc = {"np": np}
+        #     exec(fp.read(), loc, None)
+        #     self.links = loc["make_robot"]().links
 
-        self.axes_min = Coord(*[lnk.qlim[0] for lnk in self.links], e=0)
-        self.axes_max = Coord(*[lnk.qlim[1] for lnk in self.links], e=0)
-        self.limits = [(1.0, -1.0)] * len(self.links)
+        self.axes_min = Coord(*[rail.position_min for rail in self.rails], e=0)
+        self.axes_max = Coord(*[rail.position_max for rail in self.rails], e=0)
+        self.limits = [(1.0, -1.0)] * len(self.rails)
 
         for s in self.get_steppers():
             s.set_trapq(toolhead.get_trapq())
@@ -41,7 +41,7 @@ class RoboticJointsKinematics:
         return [s for rail in self.rails for s in rail.get_steppers()]
 
     def _motor_off(self, print_time):
-        self.limits = [(1.0, -1.0)] * len(self.links)
+        self.limits = [(1.0, -1.0)] * len(self.rails)
 
     def calc_position(self, stepper_positions):
         return [
@@ -66,7 +66,7 @@ class RoboticJointsKinematics:
 
         # update limits to mark the stepper is ready for further instr
         for axis in homing_axes:
-            self.limits[axis] = self.links[axis].qlim[:2]
+            self.limits[axis] = (self.rails[axis].position_min, self.rails[axis].position_max)
 
     def home(self, homing_state):
         for axis in homing_state.get_axes():
