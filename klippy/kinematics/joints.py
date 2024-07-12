@@ -17,8 +17,8 @@ class RoboticJointsKinematics:
         self.max_velocity, self.max_accel = toolhead.get_max_velocity()
 
         printer_config = config.getsection("printer")
-        links_spec = printer_config.get("links")
 
+        # links_spec = printer_config.get("links")
         # with open(links_spec, "r") as fp:
         #     loc = {"np": np}
         #     exec(fp.read(), loc, None)
@@ -91,11 +91,11 @@ class RoboticJointsKinematics:
             if dis == 0:
                 continue
 
-            if lim[0] > lim[1]:
-                raise move.move_error("Must home axis first")
+            #if lim[0] > lim[1]:
+            #    raise move.move_error("Must home axis first")
 
-            if pos < lim[0] or pos > lim[1]:
-                raise move.move_error()
+            #if pos < lim[0] or pos > lim[1]:
+            #    raise move.move_error()
 
     def get_status(self, eventtime):
         axes = [n for n, lim in zip("xyzabc", self.limits) if lim[0] <= lim[1]]
